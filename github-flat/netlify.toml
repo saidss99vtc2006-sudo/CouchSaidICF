@@ -1,0 +1,9 @@
+# Prebuilt site: no build needed. Netlify publishes these files as they are.
+[build]
+  command = "echo prebuilt"
+  publish = "."
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

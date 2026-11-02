@@ -1,0 +1,32 @@
+{
+  "name": "خبير الكوتشينج المعتمد ICF",
+  "short_name": "ICF Coach",
+  "description": "مساعد ذكي لشرح جدارات وأخلاقيات ICF والتحضير لامتحان ACC - تصميم: سعيد العلوي - البريمي، عُمان",
+  "lang": "ar",
+  "dir": "rtl",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#0b1f6b",
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
