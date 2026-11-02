@@ -204,6 +204,7 @@ export function formatCodeOfEthicsOverview(): string {
 import { Language } from '../context/LanguageContext';
 import { getLocalizedQuestion, getOptionLetterDisplay } from './bilingualHelper';
 import { locComp } from '../data/icfKnowledgeEn';
+import { smartRoute, smartSearch, smartFallback, normalizeText } from './smartIntent';
 
 export function evaluateUserAnswer(
   scenario: ScenarioQuestion, 
@@ -296,6 +297,7 @@ export function processUserChatInput(
   isEvaluation?: boolean;
 } {
   const clean = input.trim().toLowerCase();
+  const norm = normalizeText(input);
 
   // 1. Check if user is answering an active scenario question with (أ، ب، ج، د / A, B, C, D)
   if (activePendingEvaluation && lastScenario) {
@@ -322,12 +324,32 @@ export function processUserChatInput(
     }
   }
 
+  // 1.5 Smart understanding (normalized Arabic, numbers, ordinals, common topics)
+  const smart = smartRoute(input, lang);
+  if (smart) {
+    if ('competencyId' in smart) {
+      const comp = getCompetencyById(smart.competencyId)!;
+      return { reply: formatCompetencyExplanationLoc(comp, lang), type: 'explanation', relatedCompetencyId: comp.id };
+    }
+    return smart;
+  }
+
+  // 1.6 Exam tips & referral (checked before exam detection so "نصائح للامتحان" isn't treated as a question request)
+  if (norm.includes('نصيح') || norm.includes('نصايح') || norm.includes('كيف استعد') || /\btips?\b/.test(norm) || norm.includes('how to prepare')) {
+    return { reply: lang === 'en' ? EXAM_TIPS_EN : EXAM_TIPS_AR, type: 'general' };
+  }
+  if (['احيل', 'احاله', 'معالج', 'طبيب نفسي', 'علاج نفسي', 'refer', 'therapist'].some(k => norm.includes(k))) {
+    return { reply: lang === 'en' ? formatReferralExplanationEn() : formatReferralExplanation(), type: 'referral' };
+  }
+
   // 2. Request for exam / scenario question (supporting difficulty detection)
   if (
     clean.includes('اختبار') || 
     clean.includes('امتحان') || 
     clean.includes('سيناريو') || 
     clean.includes('سؤال') || 
+    norm.includes('سوال') ||
+    norm.includes('اختبرني') ||
     clean.includes('acc') ||
     clean === '2' ||
     clean.includes('بدء اختبار') ||
@@ -438,36 +460,16 @@ ${optionsText}
     return { reply: isEn ? EXAM_TIPS_EN : EXAM_TIPS_AR, type: 'general' };
   }
 
-  // 8. Fallback
-  const shortInput = input.length > 60 ? input.slice(0, 60) + '...' : input;
-  if (isEn) {
-    return {
-      reply: `Welcome, dear colleague! This is your smart assistant for mastering ICF competencies.
-
-I read your input: "${shortInput}".
-
-In the ICF approach, every conversation is an opportunity to deepen partnership and evoke awareness.
-
-**How would you like to take your next step?**
-- 📌 **Detailed explanation:** type the name or number of any competency (1–8), the GROW model, or referral guidelines.
-- 🎯 **Practice exam (4 options):** type "question" or "hard question" to get an ACC-style scenario with options (A, B, C, D) and instant feedback.
-- 💬 **Discuss a real case:** share any dilemma from your sessions and we'll analyze it according to ICF standards!`,
-      type: 'general'
-    };
+  // 8. Search the knowledge base for the closest topic, then a helpful fallback
+  const found = smartSearch(input, lang);
+  if (found) {
+    if ('competencyId' in found) {
+      const comp = getCompetencyById(found.competencyId)!;
+      return { reply: formatCompetencyExplanationLoc(comp, lang), type: 'explanation', relatedCompetencyId: comp.id };
+    }
+    return found;
   }
-  return {
-    reply: `أهلاً بك زميلي العزيز! معك المساعد الذكي لإتقان جدارات ICF.
-
-لقد قرأت مداخلتك القيمة: "${shortInput}".
-
-في مدرسة الاتحاد الدولي للكوتشينج (ICF)، نؤمن بأن كل تجربة وكل حوار هو فرصة لتعميق الشراكة وإثارة الوعي.
-
-**كيف تحب أن نوجه خطوتنا التالية لخدمة هدفك بأعلى كفاءة؟**
-- 📌 **طلب شرح تفصيلي:** اكتب اسم أو رقم أي جدارة (من 1 إلى 8)، أو نموذج GROW، أو معايير الإحالة.
-- 🎯 **اختبار تجريبي (4 خيارات):** اكتب "سؤال" أو "سؤال صعب" لأولد لك سيناريو من واقع اختبار ACC مع خيارات (أ، ب، ج، د) وتقييم فوري.
-- 💬 **مناقشة حالة واقعية:** شاركني أي موقف أو معضلة واجهتك في جلساتك لنحللها وفق معايير ICF!`,
-    type: 'general'
-  };
+  return { reply: smartFallback(input, lang), type: 'general' };
 }
 
 // ================= Bilingual formatters =================
